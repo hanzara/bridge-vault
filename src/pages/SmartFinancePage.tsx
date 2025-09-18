@@ -163,25 +163,6 @@ const SmartFinancePage = () => {
     { title: 'Investment Pioneer', description: 'Made your first investment', icon: TrendingUp, unlocked: false },
   ];
 
-  const handleSendMessage = () => {
-    if (chatMessage.trim()) {
-      setChatHistory([...chatHistory, { type: 'user', message: chatMessage }]);
-      setChatMessage('');
-      
-      // Simulate AI response
-      setTimeout(() => {
-        const responses = [
-          "That's a great strategy! Let me analyze your spending patterns and suggest optimizations.",
-          "Based on your income profile, I recommend diversifying into a money market fund for better returns.",
-          "I notice you spend heavily on transport. Have you considered carpooling or using matatu savings cards?",
-          "Your savings rate is improving! Keep this momentum and you'll reach your goals faster than expected."
-        ];
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        setChatHistory(prev => [...prev, { type: 'bot', message: randomResponse }]);
-      }, 1000);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto p-6 space-y-6">
