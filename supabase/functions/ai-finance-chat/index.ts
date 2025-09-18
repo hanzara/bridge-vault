@@ -95,13 +95,12 @@ Keep responses concise, actionable, and encouraging. Use Kenyan context and exam
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini-2025-08-07',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
         ],
-        max_tokens: 800,
-        temperature: 0.7,
+        max_completion_tokens: 800,
       }),
     });
 
@@ -152,13 +151,12 @@ Keep responses concise, actionable, and encouraging. Use Kenyan context and exam
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-5-mini-2025-08-07',
           messages: [
             { role: 'system', content: 'You are a financial advisor. Generate specific recommendations in JSON format with title, description, type, and expected_impact fields.' },
             { role: 'user', content: recommendationPrompt }
           ],
-          max_tokens: 300,
-          temperature: 0.5,
+          max_completion_tokens: 300,
         }),
       });
 

@@ -18,12 +18,17 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useSmartFinance } from '@/hooks/useSmartFinance';
 import { useAIServices } from '@/hooks/useAIServices';
 import CurrencyDisplay from '@/components/CurrencyDisplay';
+import CreateGoalModal from '@/components/CreateGoalModal';
+import GoalContributionModal from '@/components/GoalContributionModal';
 
 const SmartFinancePage = () => {
   const [chatMessage, setChatMessage] = useState('');
   const [newGoalName, setNewGoalName] = useState('');
   const [newGoalAmount, setNewGoalAmount] = useState('');
   const [newGoalDate, setNewGoalDate] = useState('');
+  const [showCreateGoalModal, setShowCreateGoalModal] = useState(false);
+  const [showContributionModal, setShowContributionModal] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState(null);
 
   // Use Smart Finance hooks
   const {
@@ -505,44 +510,37 @@ const SmartFinancePage = () => {
                       </div>
                     )}
                     
-                    <Button size="sm" className="w-full">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Contribution
-                    </Button>
+                     <Button 
+                       size="sm" 
+                       className="w-full"
+                       onClick={() => {
+                         setSelectedGoal(goal);
+                         setShowContributionModal(true);
+                       }}
+                     >
+                       <Plus className="h-4 w-4 mr-2" />
+                       Add Contribution
+                     </Button>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
-            {/* Add New Goal */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Create New Goal</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Input 
-                    placeholder="Goal name (e.g., Buy Land)" 
-                    value={newGoalName}
-                    onChange={(e) => setNewGoalName(e.target.value)}
-                  />
-                  <Input 
-                    placeholder="Target amount (KES)" 
-                    type="number"
-                    value={newGoalAmount}
-                    onChange={(e) => setNewGoalAmount(e.target.value)}
-                  />
-                  <Input 
-                    placeholder="Deadline" 
-                    type="date"
-                    value={newGoalDate}
-                    onChange={(e) => setNewGoalDate(e.target.value)}
-                  />
+            {/* Create New Goal Button */}
+            <Card className="border-dashed border-2 border-gray-300 hover:border-blue-400 transition-colors cursor-pointer">
+              <CardContent 
+                className="flex items-center justify-center py-12"
+                onClick={() => setShowCreateGoalModal(true)}
+              >
+                <div className="text-center space-y-3">
+                  <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
+                    <Plus className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">Create New Goal</h3>
+                    <p className="text-sm text-gray-600">Set a financial target and track your progress</p>
+                  </div>
                 </div>
-                <Button className="mt-4" onClick={handleCreateGoal}>
-                  <Target className="h-4 w-4 mr-2" />
-                  Create Goal
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -865,10 +863,25 @@ const SmartFinancePage = () => {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      </div>
-    </div>
-  );
-};
+          </Tabs>
 
-export default SmartFinancePage;
+          {/* Modals */}
+          <CreateGoalModal 
+            isOpen={showCreateGoalModal}
+            onClose={() => setShowCreateGoalModal(false)}
+          />
+          
+          <GoalContributionModal 
+            goal={selectedGoal}
+            isOpen={showContributionModal}
+            onClose={() => {
+              setShowContributionModal(false);
+              setSelectedGoal(null);
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+  
+  export default SmartFinancePage;
