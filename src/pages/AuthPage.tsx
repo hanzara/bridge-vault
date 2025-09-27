@@ -1,429 +1,324 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Loader2, 
-  Mail, 
-  Lock, 
-  User, 
-  Eye, 
-  EyeOff, 
   Shield, 
-  Building2,
-  Users,
-  TrendingUp,
-  Wallet,
-  Brain,
-  CheckCircle,
-  Handshake,
-  Car
+  User, 
+  FileCheck, 
+  Settings, 
+  Fingerprint,
+  CreditCard,
+  Eye,
+  Activity,
+  Award,
+  Lock,
+  ChevronRight,
+  UserCheck,
+  Clock,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import ProfilePhotoUpload from '@/components/ProfilePhotoUpload';
-import GoogleAppleAuth from '@/components/GoogleAppleAuth';
+import AuthForms from '@/components/auth/AuthForms';
+import ProfileManagement from '@/components/auth/ProfileManagement';
+import KYCVerification from '@/components/auth/KYCVerification';
+import PinSetupForm from '@/components/auth/PinSetupForm';
+import SecurityDashboard from '@/components/auth/SecurityDashboard';
+import ComplianceCenter from '@/components/auth/ComplianceCenter';
+import AdminTools from '@/components/auth/AdminTools';
+import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 
 const AuthPage: React.FC = () => {
-  const { signIn, signUp, loading, user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { profile, profileCompletion, securitySettings, loading } = useEnhancedAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    fullName: '',
-    confirmPassword: ''
-  });
+  const [activeTab, setActiveTab] = useState('profile');
 
-  // Redirect if already authenticated
+  // Redirect authenticated users to dashboard unless they're managing their profile
   useEffect(() => {
-    if (user) {
+    if (user && profileCompletion >= 80 && !window.location.search.includes('manage=true')) {
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [user, profileCompletion, navigate]);
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
+  const getVerificationStatus = () => {
+    if (!profile) return { status: 'pending', icon: Clock, color: 'text-gray-500' };
     
-    setIsSubmitting(true);
-    try {
-      await signIn(formData.email, formData.password);
-      navigate('/dashboard');
-    } catch (error: any) {
-      toast({
-        title: "Sign In Failed",
-        description: error.message || "Please check your credentials and try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+    switch (profile.kyc_status) {
+      case 'verified':
+        return { status: 'Verified', icon: CheckCircle2, color: 'text-green-600' };
+      case 'in_review':
+        return { status: 'Under Review', icon: Clock, color: 'text-blue-600' };
+      case 'rejected':
+        return { status: 'Rejected', icon: AlertTriangle, color: 'text-red-600' };
+      default:
+        return { status: 'Pending', icon: Clock, color: 'text-gray-500' };
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "Please ensure both passwords match.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      toast({
-        title: "Password Too Short",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      await signUp(formData.email, formData.password, formData.fullName);
-      navigate('/dashboard');
-    } catch (error: any) {
-      toast({
-        title: "Sign Up Failed",
-        description: error.message || "Please check your information and try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+  const getSecurityScore = () => {
+    if (!securitySettings) return 50;
+    return securitySettings.security_score;
   };
 
-  const isLoading = loading || isSubmitting;
+  const getVerificationBenefits = () => {
+    if (!profile) return { tier: 'basic', maxTransaction: 10000, maxDaily: 50000 };
+    return {
+      tier: profile.verification_tier,
+      maxTransaction: profile.max_transaction_limit,
+      maxDaily: profile.max_daily_limit
+    };
+  };
 
-  const features = [
-    {
-      icon: Users,
-      title: "Chama Management",
-      description: "Create and manage savings groups with trusted members"
-    },
-    {
-      icon: Wallet,
-      title: "Smart Wallet",
-      description: "Secure digital wallet with mobile money integration"
-    },
-    {
-      icon: TrendingUp,
-      title: "Investment Tracking",
-      description: "Monitor your savings growth and investment returns"
-    },
-    {
-      icon: Brain,
-      title: "AI Financial Navigator",
-      description: "Get personalized financial insights and predictions"
-    },
-    {
-      icon: Shield,
-      title: "Secure Lending",
-      description: "Access loans with competitive rates and flexible terms"
-    },
-    {
-      icon: Building2,
-      title: "Bank Integration",
-      description: "Connect with verified financial institutions"
-    },
-    {
-      icon: Handshake,
-      title: "Strategic Partnerships",
-      description: "Access exclusive deals through our network of trusted partners"
-    },
-    {
-      icon: Car,
-      title: "Asset Finance",
-      description: "Finance vehicles, equipment, and property with flexible terms"
-    }
-  ];
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex">
+        {/* Left Panel - Features */}
+        <div className="hidden lg:flex lg:w-1/2 bg-primary p-12 text-primary-foreground flex-col justify-center">
+          <div className="max-w-lg">
+            <h1 className="text-4xl font-bold mb-4">
+              Secure Digital Identity
+            </h1>
+            <p className="text-xl text-primary-foreground/80 mb-8">
+              Complete KYC verification, set up PIN security, and manage your digital financial identity with bank-grade security.
+            </p>
+            
+            <div className="space-y-6">
+              {[
+                {
+                  icon: Shield,
+                  title: "Enhanced Security",
+                  description: "Multi-layer security with PIN, biometrics, and fraud detection"
+                },
+                {
+                  icon: FileCheck,
+                  title: "KYC Verification",
+                  description: "Secure document verification for higher transaction limits"
+                },
+                {
+                  icon: UserCheck,
+                  title: "Identity Management",
+                  description: "Complete profile management with privacy controls"
+                },
+                {
+                  icon: Award,
+                  title: "Verified Benefits",
+                  description: "Access premium features with verified account status"
+                },
+                {
+                  icon: Activity,
+                  title: "Real-time Monitoring",
+                  description: "24/7 fraud detection and suspicious activity alerts"
+                },
+                {
+                  icon: Lock,
+                  title: "Compliance Ready",
+                  description: "GDPR compliant with full audit trails and data protection"
+                }
+              ].map((feature, index) => (
+                <div key={index} className="flex items-start space-x-4">
+                  <div className="bg-primary-foreground/20 rounded-lg p-2 flex-shrink-0">
+                    <feature.icon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">{feature.title}</h3>
+                    <p className="text-primary-foreground/80">{feature.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-  return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Panel - Features */}
-      <div className="hidden lg:flex lg:w-1/2 bg-primary p-12 text-primary-foreground flex-col justify-center">
-        <div className="max-w-lg">
-          <h1 className="text-4xl font-bold mb-4">
-            Welcome to ChamaVault
-          </h1>
-          <p className="text-xl text-primary-foreground/80 mb-8">
-            The future of community finance and digital savings in Kenya
-          </p>
-          
-          <div className="space-y-6">
-            {features.map((feature, index) => (
-              <div key={index} className="flex items-start space-x-4">
-                <div className="bg-primary-foreground/20 rounded-lg p-2 flex-shrink-0">
-                  <feature.icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">{feature.title}</h3>
-                  <p className="text-primary-foreground/80">{feature.description}</p>
-                </div>
+            <div className="mt-12 p-6 bg-primary-foreground/10 rounded-lg backdrop-blur-sm border border-primary-foreground/20">
+              <div className="flex items-center space-x-2 mb-3">
+                <CheckCircle2 className="h-5 w-5 text-primary-foreground" />
+                <span className="font-semibold">Bank-grade security standards</span>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-12 p-6 bg-primary-foreground/10 rounded-lg backdrop-blur-sm border border-primary-foreground/20">
-            <div className="flex items-center space-x-2 mb-3">
-              <CheckCircle className="h-5 w-5 text-primary-foreground" />
-              <span className="font-semibold">Trusted by 10,000+ users</span>
-            </div>
-            <div className="flex items-center space-x-2 mb-3">
-              <CheckCircle className="h-5 w-5 text-primary-foreground" />
-              <span className="font-semibold">KES 50M+ in savings managed</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-5 w-5 text-primary-foreground" />
-              <span className="font-semibold">Bank-grade security</span>
+              <div className="flex items-center space-x-2 mb-3">
+                <CheckCircle2 className="h-5 w-5 text-primary-foreground" />
+                <span className="font-semibold">GDPR compliant data protection</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="h-5 w-5 text-primary-foreground" />
+                <span className="font-semibold">24/7 fraud monitoring</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Right Panel - Authentication */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="font-bold text-3xl text-primary mb-2">
-              ChamaVault
-            </div>
-            <p className="text-muted-foreground">
-              Your gateway to smart community finance
-            </p>
-          </div>
-
-          <Card className="border border-border shadow-lg bg-card">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl text-card-foreground">Get Started Today</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Join thousands of users building their financial future
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="signin" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="signin" disabled={isLoading}>
-                    Sign In
-                  </TabsTrigger>
-                  <TabsTrigger value="signup" disabled={isLoading}>
-                    Sign Up
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="signin" className="space-y-4">
-                  <form onSubmit={handleSignIn} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signin-email" className="text-foreground">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signin-email"
-                          type="email"
-                          placeholder="Enter your email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          disabled={isLoading}
-                          className="pl-10 focus-accessible border-input"
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signin-password" className="text-foreground">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signin-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          value={formData.password}
-                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          disabled={isLoading}
-                          className="pl-10 pr-10 focus-accessible border-input"
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                          disabled={isLoading}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Signing in...
-                        </>
-                      ) : (
-                        'Sign In'
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                <TabsContent value="signup" className="space-y-4">
-                  <form onSubmit={handleSignUp} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-name" className="text-foreground">Full Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-name"
-                          type="text"
-                          placeholder="Enter your full name"
-                          value={formData.fullName}
-                          onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                          disabled={isLoading}
-                          className="pl-10 focus-accessible border-input"
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-email" className="text-foreground">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-email"
-                          type="email"
-                          placeholder="Enter your email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          disabled={isLoading}
-                          className="pl-10 focus-accessible border-input"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <ProfilePhotoUpload />
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-password" className="text-foreground">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Create a password"
-                          value={formData.password}
-                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          disabled={isLoading}
-                          className="pl-10 pr-10 focus-accessible border-input"
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                          disabled={isLoading}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="confirm-password" className="text-foreground">Confirm Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="confirm-password"
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Confirm your password"
-                          value={formData.confirmPassword}
-                          onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                          disabled={isLoading}
-                          className="pl-10 pr-10 focus-accessible border-input"
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          disabled={isLoading}
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating account...
-                        </>
-                      ) : (
-                        'Create Account'
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
-
-              <div className="mt-6">
-                <GoogleAppleAuth />
+        {/* Right Panel - Authentication Forms */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <div className="font-bold text-3xl text-primary mb-2">
+                ChamaVault
               </div>
+              <p className="text-muted-foreground">
+                Secure authentication and identity management
+              </p>
+            </div>
 
-              <div className="mt-6">
-                <Separator />
-                <div className="text-center text-sm text-muted-foreground mt-4">
-                  By continuing, you agree to our{' '}
-                  <a href="#" className="text-primary hover:underline">Terms of Service</a>{' '}
-                  and{' '}
-                  <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+            <AuthForms />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <p className="mt-4 text-muted-foreground">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const verificationStatus = getVerificationStatus();
+  const securityScore = getSecurityScore();
+  const benefits = getVerificationBenefits();
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Identity & Security Center</h1>
+              <p className="text-muted-foreground mt-1">
+                Manage your profile, security settings, and verification status
+              </p>
+            </div>
+            <Button onClick={() => navigate('/dashboard')} variant="outline">
+              <ChevronRight className="h-4 w-4 mr-2" />
+              Go to Dashboard
+            </Button>
+          </div>
+        </div>
+
+        {/* Status Overview */}
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <User className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Profile</p>
+                  <p className="text-lg font-semibold">{profileCompletion}% Complete</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="text-center mt-6 text-sm text-muted-foreground">
-            Need help? Contact our{' '}
-            <a href="#" className="text-primary hover:underline">support team</a>
-            {' '}or{' '}
-            <a href="/download" className="text-primary hover:underline">download our app</a>
-          </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <verificationStatus.icon className={`h-5 w-5 ${verificationStatus.color}`} />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">KYC Status</p>
+                  <p className="text-lg font-semibold">{verificationStatus.status}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Shield className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Security Score</p>
+                  <p className="text-lg font-semibold">{securityScore}/100</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <CreditCard className="h-5 w-5 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Daily Limit</p>
+                  <p className="text-lg font-semibold">KES {benefits.maxDaily.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="kyc" className="flex items-center gap-2">
+              <FileCheck className="h-4 w-4" />
+              KYC
+            </TabsTrigger>
+            <TabsTrigger value="security" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="pin" className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              PIN
+            </TabsTrigger>
+            <TabsTrigger value="compliance" className="flex items-center gap-2">
+              <Eye className="h-4 w-4" />
+              Legal
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Admin
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          <TabsContent value="profile">
+            <ProfileManagement />
+          </TabsContent>
+
+          <TabsContent value="kyc">
+            <KYCVerification />
+          </TabsContent>
+
+          <TabsContent value="security">
+            <SecurityDashboard />
+          </TabsContent>
+
+          <TabsContent value="pin">
+            <PinSetupForm />
+          </TabsContent>
+
+          <TabsContent value="compliance">
+            <ComplianceCenter />
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="admin">
+              <AdminTools />
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
     </div>
   );
