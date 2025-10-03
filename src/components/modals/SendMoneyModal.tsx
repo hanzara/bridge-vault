@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import CurrencyDisplay from '@/components/CurrencyDisplay';
 import { useTransactionNotification } from '@/hooks/useTransactionNotification';
+import { useFeeCalculation } from '@/hooks/useFeeCalculation';
 
 interface SendMoneyModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const { showTransactionNotification } = useTransactionNotification();
+  const { calculateFeeLocally } = useFeeCalculation();
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -92,12 +94,17 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
 
       if (error) throw error;
 
+      // Calculate fee based on amount
+      const fee = calculateFeeLocally('send_money', numericAmount);
+      const newBalance = walletBalance - numericAmount - fee;
+
       // Show sender notification
       showTransactionNotification({
         type: 'p2p_send',
         amount: numericAmount,
         recipientName: recipientDisplayName,
-        newBalance: walletBalance - numericAmount - (numericAmount < 1000 ? 5 : 10),
+        recipientPhone: recipient,
+        newBalance: newBalance,
       });
 
       setRecipient('');

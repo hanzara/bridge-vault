@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import CurrencyDisplay from '@/components/CurrencyDisplay';
 import { useToast } from '@/hooks/use-toast';
+import { useTransactionNotification } from '@/hooks/useTransactionNotification';
+import { useFeeCalculation } from '@/hooks/useFeeCalculation';
 
 interface SendToMemberProps {
   user: any;
@@ -28,6 +30,8 @@ const SendToMember: React.FC<SendToMemberProps> = ({ user, chamaId, availableBal
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { showTransactionNotification } = useTransactionNotification();
+  const { calculateFeeLocally } = useFeeCalculation();
 
   // Mock members data - would come from backend
   const chamaMembers = [
@@ -140,10 +144,17 @@ const SendToMember: React.FC<SendToMemberProps> = ({ user, chamaId, availableBal
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Mock successful transaction
-      toast({
-        title: "Transfer Successful! 🎉",
-        description: `KES ${amount.toLocaleString()} sent to ${selectedMember.name}`,
+      // Calculate fee and new balance
+      const fee = calculateFeeLocally('send_money', amount);
+      const newBalance = availableBalance - amount - fee;
+
+      // Show transaction notification
+      showTransactionNotification({
+        type: 'p2p_send',
+        amount: amount,
+        recipientName: selectedMember.name,
+        recipientPhone: selectedMember.phone,
+        newBalance: newBalance,
       });
 
       // Reset form
