@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTransactionNotification } from '@/hooks/useTransactionNotification';
+import { useFeeCalculation } from '@/hooks/useFeeCalculation';
 
 interface AddMoneyModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({ isOpen, onClose, o
   const { user } = useAuth();
   const { toast } = useToast();
   const { showTransactionNotification } = useTransactionNotification();
+  const { calculateFeeLocally } = useFeeCalculation();
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -85,6 +87,7 @@ export const AddMoneyModal: React.FC<AddMoneyModalProps> = ({ isOpen, onClose, o
         .single();
 
       const newBalance = walletData?.balance || numericAmount;
+      const fee = calculateFeeLocally('deposit', numericAmount);
 
       showTransactionNotification({
         type: 'deposit',

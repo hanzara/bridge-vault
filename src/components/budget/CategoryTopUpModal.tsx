@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus } from 'lucide-react';
 import CurrencyDisplay from '@/components/CurrencyDisplay';
+import { useTransactionNotification } from '@/hooks/useTransactionNotification';
+import { useFeeCalculation } from '@/hooks/useFeeCalculation';
 import type { Database } from '@/integrations/supabase/types';
 
 type BudgetCategory = Database['public']['Tables']['budget_categories']['Row'];
@@ -34,6 +36,8 @@ const CategoryTopUpModal: React.FC<CategoryTopUpModalProps> = ({
   onTopUp,
   isProcessing,
 }) => {
+  const { showTransactionNotification } = useTransactionNotification();
+  const { calculateFeeLocally } = useFeeCalculation();
   const [formData, setFormData] = useState({
     amount: '',
     payment_method: '',
@@ -60,6 +64,16 @@ const CategoryTopUpModal: React.FC<CategoryTopUpModalProps> = ({
       till_number: formData.till_number || undefined,
       phone_number: formData.phone_number || undefined,
       notes: formData.notes || undefined,
+    });
+
+    // Calculate fee and show notification for deposit
+    const fee = calculateFeeLocally('deposit', amount);
+    const newBalance = (category?.remaining_balance || 0) + amount;
+
+    showTransactionNotification({
+      type: 'deposit',
+      amount,
+      newBalance,
     });
 
     // Reset form

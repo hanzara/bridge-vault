@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, CreditCard, AlertTriangle } from 'lucide-react';
 import CurrencyDisplay from '@/components/CurrencyDisplay';
+import { useTransactionNotification } from '@/hooks/useTransactionNotification';
+import { useFeeCalculation } from '@/hooks/useFeeCalculation';
 import type { Database } from '@/integrations/supabase/types';
 
 type BudgetCategory = Database['public']['Tables']['budget_categories']['Row'];
@@ -35,6 +37,8 @@ const CategorySpendModal: React.FC<CategorySpendModalProps> = ({
   onSpend,
   isProcessing,
 }) => {
+  const { showTransactionNotification } = useTransactionNotification();
+  const { calculateFeeLocally } = useFeeCalculation();
   const [formData, setFormData] = useState({
     amount: '',
     payment_method: '',
@@ -67,6 +71,44 @@ const CategorySpendModal: React.FC<CategorySpendModalProps> = ({
       phone_number: formData.phone_number || undefined,
       notes: formData.notes || undefined,
     });
+
+    // Calculate fee and show notification
+    const transactionType = formData.payment_method === 'withdrawal' ? 'withdrawal' : 
+                            formData.payment_method === 'send_money' ? 'send_money' : 'bill_payment';
+    const fee = calculateFeeLocally(transactionType, amount);
+    const newBalance = category.remaining_balance - amount - fee;
+
+    // Determine notification type
+    if (formData.payment_method === 'withdrawal') {
+      showTransactionNotification({
+        type: 'withdrawal',
+        amount,
+        newBalance,
+        agentNumber: formData.till_number || undefined,
+      });
+    } else if (formData.payment_method === 'send_money') {
+      showTransactionNotification({
+        type: 'p2p_send',
+        amount,
+        recipientPhone: formData.phone_number,
+        newBalance,
+      });
+    } else if (formData.payment_method === 'lipa_na_mpesa_paybill') {
+      showTransactionNotification({
+        type: 'bill_payment',
+        amount,
+        billProvider: `Paybill ${formData.paybill_number}`,
+        accountNumber: formData.account_number,
+        newBalance,
+      });
+    } else if (formData.payment_method === 'buy_goods_till') {
+      showTransactionNotification({
+        type: 'merchant_payment',
+        amount,
+        merchantName: `Till ${formData.till_number}`,
+        newBalance,
+      });
+    }
 
     // Reset form
     setFormData({
