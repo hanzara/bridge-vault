@@ -1,0 +1,19 @@
+project_id = "yrywjbxqlqpdzrudfupm"
+
+[functions.chama-wallet-ops]
+verify_jwt = true
+
+[functions.make-contribution]
+verify_jwt = true
+
+[functions.assign-role]
+verify_jwt = true
+
+[functions.manage-mgr-schedule]
+verify_jwt = true
+
+[functions.verify-contribution]
+verify_jwt = true
+
+[functions.send-announcement]
+verify_jwt = true
