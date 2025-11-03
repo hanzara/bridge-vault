@@ -250,65 +250,28 @@ export const useUserWalletOperations = () => {
   // Wallet-to-wallet transfer (NO Paystack)
   const p2pTransferMutation = useMutation({
     mutationFn: async ({ 
-      recipientId, 
+      recipientEmail, 
       amount, 
       description 
     }: { 
-      recipientId: string; 
+      recipientEmail: string; 
       amount: number; 
       description?: string; 
     }) => {
       if (!user) throw new Error('User not authenticated');
 
-      // Check wallet balance
-      const { data: wallet, error: walletError } = await supabase
-        .from('user_central_wallets')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single();
+      const { data, error } = await supabase.functions.invoke('wallet-transfer', {
+        body: {
+          recipientEmail,
+          amount,
+          description: description || 'Wallet transfer',
+        }
+      });
 
-      if (walletError) throw walletError;
-      if (!wallet || wallet.balance < amount) {
-        throw new Error('Insufficient wallet balance');
-      }
+      if (error) throw new Error(error.message || 'Transfer failed');
+      if (!data?.success) throw new Error(data?.error || 'Transfer failed');
 
-      // Deduct from sender
-      await supabase
-        .from('user_central_wallets')
-        .update({ balance: wallet.balance - amount })
-        .eq('user_id', user.id);
-
-      // Add to recipient
-      const { data: recipientWallet } = await supabase
-        .from('user_central_wallets')
-        .select('balance')
-        .eq('user_id', recipientId)
-        .single();
-
-      await supabase
-        .from('user_central_wallets')
-        .update({ balance: (recipientWallet?.balance || 0) + amount })
-        .eq('user_id', recipientId);
-
-      // Record transactions
-      await supabase.from('wallet_transactions').insert([
-        {
-          user_id: user.id,
-          type: 'transfer_out',
-          amount: -amount,
-          description: description || 'Transfer to user',
-          status: 'completed',
-        },
-        {
-          user_id: recipientId,
-          type: 'transfer_in',
-          amount: amount,
-          description: description || 'Transfer from user',
-          status: 'completed',
-        },
-      ]);
-
-      return { success: true };
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-wallets'] });
