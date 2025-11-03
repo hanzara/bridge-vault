@@ -97,8 +97,6 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
 
   const handleWalletTransfer = async () => {
     const numericAmount = parseFloat(amount);
-    const fee = calculateTransactionFee(numericAmount);
-    const totalAmount = numericAmount + fee;
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipient)) {
@@ -122,69 +120,29 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
     setIsLoading(true);
     
     try {
-      // Find recipient user ID by email using RPC function
-      const { data: recipientId, error: lookupError } = await supabase.rpc('find_user_by_email', {
-        p_email: recipient
-      });
-      
-      if (lookupError) {
-        console.error('User lookup error:', lookupError);
-        throw new Error('Unable to find recipient. Please try again.');
-      }
-
-      if (!recipientId) {
-        toast({
-          title: "Recipient Not Found",
-          description: `No user found with email: ${recipient}`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (recipientId === user.id) {
-        toast({
-          title: "Invalid Transaction",
-          description: "You cannot send money to yourself",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Call atomic transfer RPC function directly
-      const { data, error } = await supabase.rpc('atomic_wallet_transfer', {
-        p_sender_id: user.id,
-        p_receiver_id: recipientId,
-        p_amount: numericAmount,
-        p_fee: fee,
-        p_description: description.trim() || `Transfer to ${recipient}`
+      // Call wallet-transfer edge function
+      const { data, error } = await supabase.functions.invoke('wallet-transfer', {
+        body: {
+          recipientEmail: recipient,
+          amount: numericAmount,
+          description: description.trim() || `Transfer to ${recipient}`
+        }
       });
 
       if (error) {
-        console.error('RPC error:', error);
+        console.error('Transfer error:', error);
         throw new Error(error.message || 'Transfer failed');
       }
 
-      // Parse JSON response
-      const result = typeof data === 'string' ? JSON.parse(data) : data;
-
-      if (!result?.success) {
-        if (result?.error?.includes('Insufficient balance')) {
-          toast({
-            title: "Insufficient Balance",
-            description: `You need KES ${totalAmount.toFixed(2)} but only have KES ${result.balance?.toFixed(2) || walletBalance.toFixed(2)}`,
-            variant: "destructive",
-          });
-        } else if (result?.error?.includes('Duplicate transaction')) {
-          toast({
-            title: "Duplicate Transaction",
-            description: "This transaction was recently processed. Please wait before retrying.",
-            variant: "destructive",
-          });
-        } else {
-          throw new Error(result?.error || 'Transfer failed');
-        }
-        return;
+      if (!data?.success) {
+        throw new Error(data?.error || 'Transfer failed');
       }
+
+      const result = data;
+
+      // Success handling
+      const transferFee = result.fee || 0;
+      const totalTransferred = result.amount_sent || numericAmount;
 
       // Refresh wallet balance immediately
       await queryClient.invalidateQueries({ queryKey: ['user-wallets'] });
@@ -197,8 +155,8 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
       // Show receipt
       setReceiptData({
         amount: numericAmount,
-        fee,
-        total: numericAmount + fee,
+        fee: transferFee,
+        total: totalTransferred + transferFee,
         recipient,
         description: description || `Transfer to ${recipient}`,
         newBalance,
