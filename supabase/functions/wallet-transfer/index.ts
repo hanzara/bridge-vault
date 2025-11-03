@@ -77,42 +77,106 @@ serve(async (req) => {
       );
     }
 
-    // Call the transfer_funds SQL function
-    const { data: transferResult, error: transferError } = await supabaseAdmin.rpc('transfer_funds', {
-      p_sender_id: user.id,
-      p_receiver_id: matchingUser.id,
-      p_amount: amount,
-      p_fee: transactionFee
-    });
+    // Check sender balance
+    const { data: senderWallet, error: walletError } = await supabaseAdmin
+      .from('user_central_wallets')
+      .select('balance')
+      .eq('user_id', user.id)
+      .single();
 
-    if (transferError) {
-      console.error('Transfer error:', transferError);
+    if (walletError || !senderWallet) {
       return new Response(
-        JSON.stringify({ error: 'Transfer failed', details: transferError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Sender wallet not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Transfer result:', transferResult);
-
-    if (!transferResult.success) {
+    const totalAmount = amount + transactionFee;
+    if (senderWallet.balance < totalAmount) {
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          error: transferResult.error,
-          balance: transferResult.balance 
+          success: false,
+          error: 'Insufficient balance',
+          balance: senderWallet.balance 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Deduct from sender
+    const { error: deductError } = await supabaseAdmin
+      .from('user_central_wallets')
+      .update({ balance: senderWallet.balance - totalAmount })
+      .eq('user_id', user.id);
+
+    if (deductError) {
+      console.error('Deduct error:', deductError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to deduct from sender', details: deductError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Add to recipient
+    const { data: recipientWallet } = await supabaseAdmin
+      .from('user_central_wallets')
+      .select('balance')
+      .eq('user_id', matchingUser.id)
+      .single();
+
+    const recipientNewBalance = (recipientWallet?.balance || 0) + amount;
+
+    const { error: addError } = await supabaseAdmin
+      .from('user_central_wallets')
+      .update({ balance: recipientNewBalance })
+      .eq('user_id', matchingUser.id);
+
+    if (addError) {
+      console.error('Add to recipient error:', addError);
+      // Rollback sender deduction
+      await supabaseAdmin
+        .from('user_central_wallets')
+        .update({ balance: senderWallet.balance })
+        .eq('user_id', user.id);
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to credit recipient', details: addError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Record transactions (use 'transfer' type which is valid)
+    const { error: txError } = await supabaseAdmin.from('wallet_transactions').insert([
+      {
+        user_id: user.id,
+        type: 'transfer',
+        amount: -(amount + transactionFee),
+        description: `Transfer to ${recipientEmail} (Fee: KES ${transactionFee.toFixed(2)})`,
+        status: 'completed',
+      },
+      {
+        user_id: matchingUser.id,
+        type: 'transfer',
+        amount: amount,
+        description: `Transfer from ${user.email || 'user'}`,
+        status: 'completed',
+      },
+    ]);
+
+    if (txError) {
+      console.error('Transaction record error:', txError);
+      // Don't fail the transfer if just recording failed
+    }
+
+    const remainingBalance = senderWallet.balance - totalAmount;
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Transfer successful',
-        remaining_balance: transferResult.remaining_balance,
-        amount_sent: transferResult.amount_sent,
-        fee: transferResult.fee,
+        remaining_balance: remainingBalance,
+        amount_sent: amount,
+        fee: transactionFee,
         recipient: recipientEmail
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
